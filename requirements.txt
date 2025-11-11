@@ -4,3 +4,8 @@ pypdf
 pdfplumber
 python-magic-bin; sys_platform == "win32"
 python-magic; sys_platform != "win32"
+pypdfium2
+python-magic
+python-dotenv
+PyYAML
+python-multipart>=0.0.9
