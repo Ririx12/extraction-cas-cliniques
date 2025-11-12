@@ -76,14 +76,21 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     text = []
     try:
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-            for page in pdf.pages:
-                text.append(page.extract_text() or "")
+            print(f"PDF ouvert avec succès, {len(pdf.pages)} pages détectées")
+            for i, page in enumerate(pdf.pages):
+                page_text = page.extract_text() or ""
+                print(f"Page {i+1}: {len(page_text)} caractères")
+                if page_text.strip():
+                    text.append(page_text)
     except Exception as e:
+        print(f"Erreur détaillée lecture PDF: {e}")
         logging.error(f"Erreur lecture PDF: {e}")
         return ""
     
-    return clean_text("\n".join(text))
-
+    result = clean_text("\n".join(text))
+    print(f"Texte total extrait: {len(result)} caractères")
+    return result
+    
 def extract_patient_info(text: str) -> Dict[str, Any]:
     """Extrait les informations patient"""
     info = {}
