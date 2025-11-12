@@ -1,11 +1,12 @@
-fastapi
-uvicorn[standard]
 pypdf
-pdfplumber
 python-magic-bin; sys_platform == "win32"
 python-magic; sys_platform != "win32"
 pypdfium2
 python-magic
 python-dotenv
 PyYAML
-python-multipart>=0.0.9
+fastapi==0.104.1
+uvicorn==0.24.0
+pdfplumber==0.10.3
+pypdf2==3.0.1
+python-multipart==0.0.6
