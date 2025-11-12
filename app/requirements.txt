@@ -1,15 +1,16 @@
-pypdf
 python-magic-bin; sys_platform == "win32"
 python-magic; sys_platform != "win32"
-pypdfium2
 python-magic
-python-dotenv
 PyYAML
-fastapi==0.104.1
-uvicorn==0.24.0
-pdfplumber==0.10.3
 pypdf2==3.0.1
-python-multipart==0.0.6
 pdf2image==1.16.3
 pytesseract==0.3.10
-pillow==10.1.0
+fastapi==0.121.1
+uvicorn==0.38.0
+python-multipart==0.0.9
+pypdf==6.2.0
+pdfplumber==0.11.8
+pdfminer.six==20251107
+pypdfium2==5.0.0
+Pillow==12.0.0
+python-dotenv==1.2.1
