@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# main.py - FastAPI avec extraction avancée des CR radiologie
+# main.py - FastAPI avec extraction avancée des CR radiologie + OCR
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import sqlite3
 import logging
+import base64
 
 # Configuration
 SPECIALTIES = [
@@ -71,26 +72,68 @@ def clean_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
+def extract_text_with_ocr(file_bytes: bytes) -> str:
+    """Extrait le texte d'un PDF scanné avec OCR"""
+    try:
+        from pdf2image import convert_from_bytes
+        import pytesseract
+        
+        logging.info("Tentative d'extraction OCR...")
+        
+        # Convertir PDF en images
+        images = convert_from_bytes(file_bytes, dpi=300)
+        logging.info(f"PDF converti en {len(images)} images")
+        
+        # Extraire le texte de chaque image avec OCR
+        extracted_text = []
+        for i, image in enumerate(images):
+            text = pytesseract.image_to_string(image, lang='fra+eng')
+            extracted_text.append(f"--- Page {i+1} ---\n{text}")
+            logging.info(f"Page {i+1} traitée: {len(text)} caractères")
+        
+        result = "\n".join(extracted_text)
+        logging.info(f"OCR terminé: {len(result)} caractères extraits")
+        return clean_text(result)
+        
+    except ImportError as e:
+        logging.error(f"OCR non disponible: {e}")
+        return ""
+    except Exception as e:
+        logging.error(f"Erreur OCR: {e}")
+        return ""
+
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    """Extrait le texte d'un PDF avec pdfplumber"""
-    text = []
+    """Extrait le texte d'un PDF avec fallback OCR"""
+    text = ""
+    
+    # Essai 1: Extraction texte standard
     try:
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-            print(f"PDF ouvert avec succès, {len(pdf.pages)} pages détectées")
+            text_chunks = []
             for i, page in enumerate(pdf.pages):
                 page_text = page.extract_text() or ""
-                print(f"Page {i+1}: {len(page_text)} caractères")
                 if page_text.strip():
-                    text.append(page_text)
+                    text_chunks.append(page_text)
+                logging.info(f"Page {i+1}: {len(page_text)} caractères (pdfplumber)")
+            
+            text = clean_text("\n".join(text_chunks))
+            logging.info(f"Extraction pdfplumber: {len(text)} caractères")
     except Exception as e:
-        print(f"Erreur détaillée lecture PDF: {e}")
-        logging.error(f"Erreur lecture PDF: {e}")
-        return ""
+        logging.error(f"Erreur pdfplumber: {e}")
     
-    result = clean_text("\n".join(text))
-    print(f"Texte total extrait: {len(result)} caractères")
-    return result
+    # Si texte insuffisant, essai OCR
+    if not text or len(text) < 200:
+        logging.info("Texte insuffisant, passage à l'OCR...")
+        ocr_text = extract_text_with_ocr(file_bytes)
+        if ocr_text and len(ocr_text) > len(text):
+            text = ocr_text
+            logging.info(f"OCR a fourni {len(text)} caractères")
     
+    return text
+
+# [Le reste de votre code reste inchangé : extract_patient_info, extract_date, extract_sections, etc.]
+# ... Gardez toutes les autres fonctions telles quelles ...
+
 def extract_patient_info(text: str) -> Dict[str, Any]:
     """Extrait les informations patient"""
     info = {}
@@ -361,7 +404,8 @@ async def extract_from_pdf(file: UploadFile = File(...)):
         
         return JSONResponse({
             "report": report,
-            "raw_text_preview": text[:1000] + "..." if len(text) > 1000 else text
+            "raw_text_preview": text[:1000] + "..." if len(text) > 1000 else text,
+            "extraction_method": "OCR" if "--- Page" in text else "pdfplumber"
         })
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
